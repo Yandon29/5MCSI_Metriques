@@ -29,9 +29,24 @@ def meteo():
 def mongraphique():
     return render_template("graphique.html")
 
-@app.route("/histogramme/")
-def mongraphique2():
-    return render_template("histogramme.html")
+@app.route('/histogramme/')
+def histogramme():
+    try:
+        response = urlopen('https://samples.openweathermap.org/data/2.5/forecast?lat=0&lon=0&appid=xxx')
+        raw_content = response.read()
+        json_content = json.loads(raw_content.decode('utf-8'))
+    except Exception as e:
+        return jsonify({'error': 'Erreur lors de la récupération des données météo', 'message': str(e)}), 502
+
+    # Extraction des données pour l'histogramme
+    results = []
+    for list_element in json_content.get('list', []):
+        dt_value = list_element.get('dt_txt')
+        temp_day_value = list_element.get('main', {}).get('temp') - 273.15
+        results.append([dt_value, temp_day_value])  # Format compatible avec Google Charts
+
+    # Appel du template HTML pour afficher le graphique
+    return render_template('histogramme.html', data=json.dumps(results))
 
 # Fonction pour extraire les minutes à partir d'une date au format ISO
 @app.route('/extract-minutes/<date_string>')
