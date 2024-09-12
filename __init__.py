@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, render_template
 import json
 from urllib.request import urlopen
+import requests
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -13,7 +15,6 @@ def hello_world():
 @app.route("/contact/")
 def contact():
     return render_template('contact.html')
-
 
 # Route pour la météo de Tawarano (données brutes en JSON)
 @app.route('/tawarano/')
@@ -51,6 +52,41 @@ def histogramme():
 
     # Appel du template HTML pour afficher le graphique
     return render_template('histogramme.html', data=json.dumps(results))
+
+# Route pour extraire les minutes d'une information formatée comme "2024-02-11T11:57:27Z"
+@app.route('/extract-minutes/<date_string>')
+def extract_minutes(date_string):
+    date_object = datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%SZ')
+    minutes = date_object.minute
+    return jsonify({'minutes': minutes})
+
+# Route pour récupérer et afficher les commits
+@app.route('/commits/')
+def commits():
+    # URL de l'API GitHub pour extraire les commits
+    url = 'https://api.github.com/repos/OpenRSI/5MCSI_Metriques/commits'
+    
+    # Requête à l'API pour obtenir les commits
+    response = requests.get(url)
+    commits_data = response.json()
+    
+    # Liste pour stocker les minutes des commits
+    minutes_list = []
+    
+    # Parcourir les commits et extraire les minutes de chaque commit
+    for commit in commits_data:
+        commit_date = commit['commit']['author']['date']
+        date_object = datetime.strptime(commit_date, '%Y-%m-%dT%H:%M:%SZ')
+        minutes = date_object.minute
+        minutes_list.append(minutes)
+    
+    # Préparer les données sous forme de tableau pour Google Charts
+    commits_by_minute = []
+    for minute in range(60):
+        commits_by_minute.append([str(minute), minutes_list.count(minute)])
+    
+    # Appeler le template HTML pour afficher le graphique
+    return render_template('commits.html', data=json.dumps(commits_by_minute))
 
 if __name__ == '__main__':
     app.run(debug=True)
