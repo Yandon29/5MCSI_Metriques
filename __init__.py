@@ -9,7 +9,7 @@ app = Flask(__name__)
 # Route pour la page d'accueil
 @app.route('/')
 def hello_world():
-    return render_template('hello.html')  # comm222
+    return render_template('hello.html')  # comm2222
 
 # Route pour la page de contact
 @app.route("/contact/")
