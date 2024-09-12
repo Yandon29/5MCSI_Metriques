@@ -66,10 +66,25 @@ def commits():
     # URL de l'API GitHub pour extraire les commits
     url = 'https://api.github.com/repos/OpenRSI/5MCSI_Metriques/commits'
     
-    # Requête à l'API pour obtenir les commits
-    response = requests.get(url)
-    commits_data = response.json()
+    # Requête à l'API
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Génère une exception si la réponse a un code d'erreur
+    except requests.exceptions.HTTPError as errh:
+        return jsonify({"error": "Http Error", "message": str(errh)})
+    except requests.exceptions.ConnectionError as errc:
+        return jsonify({"error": "Error Connecting", "message": str(errc)})
+    except requests.exceptions.Timeout as errt:
+        return jsonify({"error": "Timeout Error", "message": str(errt)})
+    except requests.exceptions.RequestException as err:
+        return jsonify({"error": "OOps: Something Else", "message": str(err)})
     
+    # Imprime le contenu brut de la réponse pour voir ce qui est reçu
+    print(response.text)
+
+    # Si la réponse est OK, on continue
+    commits_data = response.json()
+
     # Liste pour stocker les minutes des commits
     minutes_list = []
     
@@ -87,6 +102,7 @@ def commits():
     
     # Appeler le template HTML pour afficher le graphique
     return render_template('commits.html', data=json.dumps(commits_by_minute))
+
 
 if __name__ == '__main__':
     app.run(debug=True)
