@@ -48,42 +48,58 @@ def histogramme():
     # Appel du template HTML pour afficher le graphique
     return render_template('histogramme.html', data=json.dumps(results))
 
-# Fonction pour extraire les minutes à partir d'une date au format ISO
+# Route pour extraire les minutes d'une information formatée comme "2024-02-11T11:57:27Z"
 @app.route('/extract-minutes/<date_string>')
 def extract_minutes(date_string):
-    date_object = datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%SZ')
-    minutes = date_object.minute
-    return jsonify({'minutes': minutes})
-
-# Nouvelle route pour afficher les commits sous forme de graphique
-@app.route('/commits/')
-def get_commits():
     try:
-        # URL de l'API GitHub pour récupérer les commits
-        url = 'https://api.github.com/repos/OpenRSI/5MCSI_Metriques/commits'
-        
-        # Récupérer les données de l'API
-        response = urlopen(url)
-        raw_data = response.read()
-        json_data = json.loads(raw_data.decode('utf-8'))
-        
-        # Extraire les minutes des dates des commits
-        commit_times = []
-        for commit in json_data:
-            commit_date = commit['commit']['author']['date']
-            minutes = extract_minutes_from_date(commit_date)
-            commit_times.append(minutes)
-        
-        # Envoyer les minutes des commits à la page HTML
-        return render_template("commits.html", commits=commit_times)
-
+        date_object = datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%SZ')
+        minutes = date_object.minute
+        return jsonify({'minutes': minutes})
     except Exception as e:
-        return f"Erreur lors de la récupération des commits : {str(e)}", 500
+        return jsonify({'error': 'Erreur lors de l\'extraction des minutes', 'message': str(e)}), 400
 
-# Fonction pour extraire les minutes d'un timestamp donné
-def extract_minutes_from_date(date_string):
-    date_object = datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%SZ')
-    return date_object.minute
+# Route pour récupérer et afficher les commits
+@app.route('/commits/')
+def commits():
+    # URL de l'API GitHub pour extraire les commits
+    url = 'https://api.github.com/repos/OpenRSI/5MCSI_Metriques/commits'
+    
+    # Requête à l'API GitHub
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Génère une exception si la réponse a un code d'erreur
+    except requests.exceptions.HTTPError as errh:
+        return jsonify({"error": "Http Error", "message": str(errh)})
+    except requests.exceptions.ConnectionError as errc:
+        return jsonify({"error": "Error Connecting", "message": str(errc)})
+    except requests.exceptions.Timeout as errt:
+        return jsonify({"error": "Timeout Error", "message": str(errt)})
+    except requests.exceptions.RequestException as err:
+        return jsonify({"error": "Oops: Something Else", "message": str(err)})
+    
+    # Récupération des données JSON
+    try:
+        commits_data = response.json()
+    except Exception as e:
+        return jsonify({"error": "Erreur lors de l'analyse des données", "message": str(e)}), 500
+
+    # Liste pour stocker les minutes des commits
+    minutes_list = []
+    
+    # Parcourir les commits et extraire les minutes de chaque commit
+    for commit in commits_data:
+        commit_date = commit['commit']['author']['date']
+        date_object = datetime.strptime(commit_date, '%Y-%m-%dT%H:%M:%SZ')
+        minutes = date_object.minute
+        minutes_list.append(minutes)
+    
+    # Préparer les données sous forme de tableau pour Google Charts
+    commits_by_minute = []
+    for minute in range(60):
+        commits_by_minute.append([str(minute), minutes_list.count(minute)])
+    
+    # Appel du template HTML pour afficher le graphique
+    return render_template('commits.html', data=json.dumps(commits_by_minute))
 
 if __name__ == "__main__":
     app.run(debug=True)
