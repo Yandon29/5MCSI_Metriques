@@ -49,11 +49,9 @@ def histogramme():
     return render_template('histogramme.html', data=json.dumps(results))
 
 # Fonction pour extraire les minutes à partir d'une date au format ISO
-@app.route('/extract-minutes/<date_string>')
-def extract_minutes(date_string):
+def extract_minutes_from_date(date_string):
     date_object = datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%SZ')
-    minutes = date_object.minute
-    return jsonify({'minutes': minutes})
+    return date_object.minute
 
 # Nouvelle route pour afficher les commits sous forme de graphique
 @app.route('/commits/')
@@ -74,16 +72,16 @@ def get_commits():
             minutes = extract_minutes_from_date(commit_date)
             commit_times.append(minutes)
         
-        # Envoyer les minutes des commits à la page HTML
-        return render_template("commits.html", commits=commit_times)
+        # Préparer les données pour Google Charts
+        commits_by_minute = []
+        for minute in range(60):
+            commits_by_minute.append([str(minute), commit_times.count(minute)])
+        
+        # Envoyer les données des commits à la page HTML sous forme de JSON
+        return render_template("commits.html", data=json.dumps(commits_by_minute))
 
     except Exception as e:
         return f"Erreur lors de la récupération des commits : {str(e)}", 500
-
-# Fonction pour extraire les minutes d'un timestamp donné
-def extract_minutes_from_date(date_string):
-    date_object = datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%SZ')
-    return date_object.minute
 
 if __name__ == "__main__":
     app.run(debug=True)
